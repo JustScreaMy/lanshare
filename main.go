@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/mdp/qrterminal/v3"
 	"log"
 	"net"
 	"net/http"
 	"os"
+
+	"github.com/mdp/qrterminal/v3"
 )
 
 const VERSION = "1.0"
@@ -52,7 +53,16 @@ func runServer(allowUploads bool, host string, port int) {
 	fmt.Printf("Listening on port %d.\n", port)
 	printAddresses(host, port)
 
-	err := http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), nil)
+	listenIP := net.ParseIP(host)
+	var ipStr string
+
+	if listenIP.To4() != nil {
+		ipStr = listenIP.String()
+	} else {
+		ipStr = fmt.Sprintf("[%s]", listenIP.String())
+	}
+
+	err := http.ListenAndServe(fmt.Sprintf("%s:%d", ipStr, port), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,14 +76,20 @@ func printAddresses(host string, port int) {
 
 	// there is a check if using a custom host
 	// this replaces array addrs with a single IP network with mask /32 (IPv4) and /128 (IPv6)
-	if host != "0.0.0.0" {
+	if host != "0.0.0.0" && host != "::" {
 		ip := net.ParseIP(host)
 
 		if ip == nil {
 			log.Fatalf("Invalid host ip address: %s\n", host)
 		}
 
-		addrs = []net.Addr{&net.IPNet{IP: ip, Mask: net.CIDRMask(32, 32)}}
+		var mask net.IPMask
+		if ip.To4() != nil {
+			mask = net.CIDRMask(32, 32)
+		} else {
+			mask = net.CIDRMask(128, 128)
+		}
+		addrs = []net.Addr{&net.IPNet{IP: ip, Mask: mask}}
 	}
 
 	fmt.Println("Open the UI at one of these URLs:")
