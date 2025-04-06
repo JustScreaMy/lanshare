@@ -21,14 +21,14 @@ func main() {
 	help := false
 	flag.BoolVar(&help, "help", false, "display help")
 	flag.BoolVar(&help, "h", false, "display help")
-	host := flag.String("host", "0.0.0.0", "the host to listen on")
+	host := flag.String("host", "0.0.0.0", "the host to listen on (IP address)")
 	port := flag.Int("p", 8080, "the port to listen on")
 
 	flag.Parse()
 
 	// validate host parameter
 	if net.ParseIP(*host) == nil {
-		log.Fatalln("Invalid host ip address")
+		log.Fatalln("Invalid host IP address")
 	}
 
 	if help {
@@ -69,18 +69,20 @@ func runServer(allowUploads bool, host string, port int) {
 }
 
 func printAddresses(host string, port int) {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return
-	}
+	var addrs []net.Addr
 
-	// there is a check if using a custom host
-	// this replaces array addrs with a single IP network with mask /32 (IPv4) and /128 (IPv6)
-	if host != "0.0.0.0" && host != "::" {
+	if host == "0.0.0.0" || host == "::" {
+		var err error
+		addrs, err = net.InterfaceAddrs()
+		if err != nil {
+			return
+		}
+	} else {
+		// if using a custom host, use a single IP for the IP list
 		ip := net.ParseIP(host)
 
 		if ip == nil {
-			log.Fatalf("Invalid host ip address: %s\n", host)
+			log.Fatalf("Invalid host IP address: %s\n", host)
 		}
 
 		var mask net.IPMask
